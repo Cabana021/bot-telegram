@@ -1,9 +1,13 @@
 import os
 import telebot
 import random
+import threading
+import schedule
+import time
 from dotenv import load_dotenv
 from fotos import photos
 from audios import songs
+from utils import salvar_chat, carregar_chats
 
 # Carrega variáveis do arquivo .env
 load_dotenv()  
@@ -15,6 +19,7 @@ bot = telebot.TeleBot(TOKEN)
 # Introdução /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
+    salvar_chat(message.chat.id)
     bot.reply_to(message, "Oi, amor!! ebaaa 😄")
 
 # Envia uma música /song
@@ -54,6 +59,12 @@ def send_random_dog_photo(message):
 
     bot.send_photo(message.chat.id, photo_url, caption=f"Aqui está um doguinho!")
 
+# Mensagem de bom dia
+def bom_dia():
+    mensagem = "Bom dia, meu amor!! ☀️💖"
+    for chat_id in carregar_chats():
+        bot.send_message(chat_id, mensagem)
+
 # Lista com mensagens que serão enviadas de forma aleatória durante o dia
 mensagem = [
     'Eii, te amo, meu amor! Beijoss',
@@ -69,10 +80,21 @@ mensagem = [
     'Gostosa',
 ]
 
-# Envia uma mensagem aleatória durante o dia
-@bot.message_handler()
-def send_(message):
-    bot.send_message(message.chat.id, random.choice(mensagem), parse_mode='Markdown')
+# Mensagem aleatória
+def mensagem_aleatoria():
+    for chat_id in carregar_chats():
+        bot.send_message(chat_id, random.choice(mensagem))
 
+# Agendando mensagens
+def agendar_mensagens():
+    schedule.every().day.at("06:00").do(bom_dia) # Envia uma mensagem de bom dia às 6h
+    schedule.every(24).hours.do(mensagem_aleatoria)  # Envia uma mensagem aleatória a cada 24h
+
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+# Rodando em thread paralela
+threading.Thread(target=agendar_mensagens, daemon=True).start()
 # Mantém o bot ligado infinitamente
 bot.infinity_polling()
